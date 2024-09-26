@@ -1,0 +1,57 @@
+#include <stdio.h>
+#include <json-c/json.h>
+
+void calcularFaturamento(const char* arquivo) {
+    FILE *fp;
+    long length;
+    char *jsonData;
+
+    fp = fopen(arquivo, "rb");
+    if (!fp) {
+        perror("Erro ao abrir o arquivo");
+        return;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    length = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    jsonData = (char*)malloc(length + 1);
+    fread(jsonData, 1, length, fp);
+    jsonData[length] = '\0'; 
+
+    fclose(fp);
+
+    struct json_object *parsed_json, *dias, *dia_obj;
+    struct json_object *valor_obj;
+    int i, dias_com_faturamento = 0;
+    double menor = __DBL_MAX__, maior = 0.0, soma = 0.0;
+
+    parsed_json = json_tokener_parse(jsonData);
+    json_object_object_get_ex(parsed_json, "faturamento", &dias);
+
+    for (i = 0; i < json_object_array_length(dias); i++) {
+        dia_obj = json_object_array_get_idx(dias, i);
+        json_object_object_get_ex(dia_obj, "valor", &valor_obj);
+        double valor = json_object_get_double(valor_obj);
+        if (valor > 0) {
+            if (valor < menor) menor = valor;
+            if (valor > maior) maior = valor;
+            soma += valor;
+            dias_com_faturamento++;
+        }
+    }
+    
+    double media = soma / dias_com_faturamento;
+    printf("Menor faturamento: %.2f\n", menor);
+    printf("Maior faturamento: %.2f\n", maior);
+    printf("Dias com faturamento acima da média: %d\n", dias_com_faturamento);
+
+    free(jsonData);
+    json_object_put(parsed_json); 
+}
+
+int main() {
+    calcularFaturamento("dados.json");
+    return 0;
+}
